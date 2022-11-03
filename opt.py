@@ -28,7 +28,7 @@ X_next = ca.vertcat(*X_next)
 dynamic_f = ca.Function('dynamic_f', [X, U], [X_next], ['state', 'input'], ['input'])
 
 # solver **********************************************************************************
-kcobs, kcc, kce = 10, 0.1, 10
+kcobs, kcc, kce = 5, 0.1, 1
 R = ca.diag([0.1, 0.1])
 nlp_f = 0
 nlp_x = []
@@ -78,8 +78,8 @@ x0 = [0 for i in range(60)]
 lbx, ubx = [],[]
 lbg, ubg = [],[]
 for i in range(10):
-    lbx += [-2,-2, -ca.inf,-ca.inf, -2,-2]
-    ubx += [ 2, 2,  ca.inf, ca.inf,  2, 2]
+    lbx += [-4,-4, -ca.inf,-ca.inf, -3,-3]
+    ubx += [ 4, 4,  ca.inf, ca.inf,  3, 3]
     lbg += [0, 0, 0, 0]
     ubg += [0, 0, 0, 0]
 
@@ -97,7 +97,11 @@ def nlp_solve(P):
                      ubg=ubg,
                      p=P)
     x0 = np.array(sol['x']).reshape(-1)
-    return sol
+    traj = np.zeros([2,10])
+    for i in range(10):
+            traj[0,i] = x0[2+i*6]
+            traj[1,i] = x0[3+i*6]
+    return x0, traj
 
 
 # test ******************************************************************************************

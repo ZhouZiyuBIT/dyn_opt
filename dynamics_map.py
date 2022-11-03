@@ -1,6 +1,9 @@
 import numpy as np
+import time
 
-# from opt import nlp_solve
+from KFP import KFP
+
+from opt import nlp_solve
 
 class Gaussian(object):
     def __init__(self, mean, cov):
@@ -29,14 +32,10 @@ class DynObstacle():
         self._total_steps = trj.shape[-1]
         
         self._step = 0
-        self.pos = trj[:,0]
-        self.pos_cov = np.array([[0.1, 0],
-                                  [0, 0.1]])
-        self.distribution = Gaussian(self.pos.reshape([-1,1]), self.pos_cov)
+        self.pos = trj[:,[0]]
 
     def update(self):
-        self.pos = self._trj[:, self._step]
-        self.distribution.reset(self.pos.reshape([-1, 1]), self.pos_cov)
+        self.pos = self._trj[:, [self._step]]
         
         self._step += 1
         if self._step >= self._total_steps:
@@ -46,9 +45,9 @@ class ProbabilityMap(object):
     def __init__(self, size=(5,5)):
         self._size = size
         self._obstacles = []
+        self._KFPs = []
 
         self.grid_map = np.zeros([100, 100])
-
         x = np.linspace(0, self._size[0], num=100)
         y = np.linspace(0, self._size[1], num=100)
         X, Y = np.meshgrid(x, y)
@@ -58,20 +57,52 @@ class ProbabilityMap(object):
     
     def add_obstacle(self, obs):
         self._obstacles.append(obs)
+        
+        dt = 0.1
+        state_dim = 6
+        input_dim = 0
+        obs_dim = 2
+        F = np.array([[1, 0, dt,  0,  0,  0],
+                      [0, 1,  0, dt,  0,  0],
+                      [0, 0,  1,  0, dt,  0],
+                      [0, 0,  0,  1,  0, dt],
+                      [0, 0,  0,  0, 1,   0],
+                      [0, 0,  0,  0, 0,   1]])
+        G = np.zeros(1)
+        H = np.array([[1, 0, 0, 0, 0, 0],
+                      [0, 1, 0, 0, 0, 0]])
+        Q = np.diag([0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
+        R = np.diag([0.01, 0.01])
+        X0 = np.array([0,0,0,0,0,0]).reshape(-1,1)
+        X0[:2] = obs.pos
+        P0 = np.diag([1,1,1,1,1,1])
+        kfp = KFP(state_dim, input_dim, obs_dim, F, G, H, Q, R, X0, P0)
+        self._KFPs.append(kfp)
 
+    def get_pred(self):
+        X, P = self._KFPs[0].predict(N=10)
+        p = np.zeros(6*10)
+        for i in range(10):
+            p[i*6:2+i*6] = X[:2,i]
+            p[2+i*6:6+i*6] = np.array([1,0 ,0,1])
+            # p[2+i*6:6+i*6] = P[:2,:2,i].T.reshape(-1)
+            print(P[:2,:2,i])
+        return p
+            
     def map_update(self):
         self.grid_map = np.zeros([100, 100])
-        for obs in self._obstacles:
+        for obs,kfp in zip(self._obstacles, self._KFPs):
             obs.update()
-            self.grid_map += obs.distribution(self._XY).reshape([100, 100])
+            kfp.propagate()
+            kfp.update(obs.pos)
+            print(kfp._P[:2,:2])
+            distri = Gaussian(kfp._X[:2], kfp._P[:2,:2])
+            self.grid_map += distri(self._XY).reshape([100, 100])
 
 map = ProbabilityMap()
-mean = np.array([2.5,2.5]).reshape([-1,1])
-cov = np.array([[0.4, 0.3], 
-                [0.1, 1]])
 
-t = np.linspace(0, 2*np.pi, 20)
-x = np.sin(t)*2 + 2.5
+t = np.linspace(0, 2*np.pi, 60)
+x = np.sin(t+2.5)*2 + 2.5
 y = np.ones(x.shape[0])*2
 x = x.reshape([1, -1])
 y = y.reshape([1, -1])
@@ -83,33 +114,49 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 sim_dt = 0.1
-def sim_run(T=5):
-    global map
+def sim_run(T=50):
     t = 0
-
+    x_init = np.array([1,0,0,0])
+    x_goal = np.array([2.5, 4])
+    p = np.zeros(4+6*10+2)
+    
     while t<T:
         map.map_update()
+
+        p[:4] = x_init
+        p[4:4+6*10] = map.get_pred()
+        p[4+6*10:] = x_goal
+        t1 = time.time()
+        X, traj = nlp_solve(p)
+        t2 = time.time()
+        print(t2-t1)
+        x_init = X[2:6]
+
         t += sim_dt
-        yield map
+        data = {
+            'map': map,
+            'traj': traj
+        }
+        yield data
 
 sim = sim_run()
 
 fig = plt.figure()
 ax = fig.add_axes([0.03, 0.05, 0.94, 0.9])
-im = ax.imshow(map.grid_map, origin='lower', extent=(0,5, 0,5), animated=False)
-line, = ax.plot([1,2,3], [1,2,3])
+line, = ax.plot([], [])
+robot, = ax.plot([],[],'o')
+im = ax.imshow(map.grid_map, origin='lower', extent=(0,5, 0,5), vmin=0, vmax=1)
 
-def init():
-    im = ax.imshow(map.grid_map, origin='lower', extent=(0,5, 0,5), animated=False)
-    line.set_data([1,2,3], [1,2,3])
-    return [im, line]
-def update_plot(*args):
-    map = next(sim)
+def update_plot(*arg):
+    data = next(sim)
+    map = data['map']
+    traj = data['traj']
+
     im.set_data(map.grid_map)
-    line.set_data([1,2,3], [1,2,3])
-    print('111')
-    return [im, line]
+    line.set_data(traj[0,:], traj[1,:])
+    robot.set_data(traj[0,0], traj[1,0])
+    return [im, line, robot]
 
-ani = animation.FuncAnimation(fig, update_plot, init_func=init, interval=100, blit=True, repeat=False)
-# fig.show()
+ani = animation.FuncAnimation(fig, update_plot, interval=100, save_count=30, blit=True, repeat=False)
+# ani.save('./gif/animation.gif', writer='imagemagick')
 plt.show()
