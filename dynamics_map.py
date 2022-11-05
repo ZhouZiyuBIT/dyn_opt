@@ -3,7 +3,7 @@ import time
 
 from KFP import KFP
 
-from opt import nlp_solve
+from opt import nlp_solve, reset_x0
 
 class Gaussian(object):
     def __init__(self, mean, cov):
@@ -84,9 +84,9 @@ class ProbabilityMap(object):
         p = np.zeros(6*10)
         for i in range(10):
             p[i*6:2+i*6] = X[:2,i]
-            p[2+i*6:6+i*6] = np.array([1,0 ,0,1])
-            # p[2+i*6:6+i*6] = P[:2,:2,i].T.reshape(-1)
-            print(P[:2,:2,i])
+            # p[2+i*6:6+i*6] = np.array([1,0 ,0,1])
+            p[2+i*6:6+i*6] = P[:2,:2,i].T.reshape(-1)
+            # print(P[:2,:2,i])
         return p
             
     def map_update(self):
@@ -102,7 +102,7 @@ class ProbabilityMap(object):
 map = ProbabilityMap()
 
 t = np.linspace(0, 2*np.pi, 60)
-x = np.sin(t+2.5)*2 + 2.5
+x = np.sin(t+2.9)*2 + 2.5
 y = np.ones(x.shape[0])*2
 x = x.reshape([1, -1])
 y = y.reshape([1, -1])
@@ -127,6 +127,7 @@ def sim_run(T=50):
         p[4:4+6*10] = map.get_pred()
         p[4+6*10:] = x_goal
         t1 = time.time()
+        reset_x0() # hard reboot
         X, traj = nlp_solve(p)
         t2 = time.time()
         print(t2-t1)

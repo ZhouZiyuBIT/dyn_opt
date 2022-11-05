@@ -1,15 +1,24 @@
 import casadi as ca
 import numpy as np
 
-# Gaussian ********************************************************************************
+# Gaussian ***************************************************************************
+# p_var = ca.SX.sym('variance', 2,2)
+# p_mean = ca.SX.sym('mean', 2,1)
+# x = ca.SX.sym('x', 2,1)
+# p_k = 1/(2*np.pi)/ca.sqrt(ca.det(p_var))
+# p = p_k*ca.exp( -(x-p_mean).T @ ((ca.inv(p_var))@(x-p_mean))/2 )
+# gauss_f = ca.Function('guassian_f', [x, p_mean, p_var], [p], ['variable', 'mean', 'variance'], ['density'])
 p_var = ca.SX.sym('variance', 2,2)
 p_mean = ca.SX.sym('mean', 2,1)
 x = ca.SX.sym('x', 2,1)
-p_k = 1/(2*np.pi)/ca.sqrt(ca.det(p_var))
-p = p_k*ca.exp( -(x-p_mean).T @ ((ca.inv(p_var))@(x-p_mean))/2 )
+p = ca.exp( -(x-p_mean).T @ ((ca.inv(p_var))@(x-p_mean))/2 )
 gauss_f = ca.Function('guassian_f', [x, p_mean, p_var], [p], ['variable', 'mean', 'variance'], ['density'])
 
-# Dynamic *********************************************************************************
+tt = ca.SX.sym('tt',1)
+yy = 0.1*(1/(1-tt)-1)
+barrier_f = ca.Function('barrier_f', [tt], [yy], ['tt'], ['yy'])
+
+# Dynamic ***************************************************************************
 dt = 0.1
 
 px, py = ca.SX.sym('px'), ca.SX.sym('py')
@@ -27,8 +36,8 @@ X_next = ca.vertcat(*X_next)
 
 dynamic_f = ca.Function('dynamic_f', [X, U], [X_next], ['state', 'input'], ['input'])
 
-# solver **********************************************************************************
-kcobs, kcc, kce = 5, 0.1, 1
+# solver ***************************************************************************
+kcobs, kcc, kce = 1, 0.1, 1
 R = ca.diag([0.1, 0.1])
 nlp_f = 0
 nlp_x = []
@@ -39,13 +48,13 @@ U = ca.SX.sym('U', 2, 10)
 P = ca.SX.sym('param', 4+6*10+2)
 
 nlp_f += kcc*U[:,0].T@R@U[:,0]
-nlp_f += kcobs*gauss_f(X[:2,0], P[4:6], ca.reshape(P[6:10], 2,2))
+nlp_f += kcobs*barrier_f(gauss_f(X[:2,0], P[4:6], ca.reshape(P[6:10], 2,2)))
 nlp_x += [U[:,0], X[:,0]]
 nlp_g += [X[:,0] - dynamic_f(P[0:4],U[:,0])]
 
 for i in range(1,10):
     nlp_f += kcc*U[:,i].T@R@U[:,i]
-    nlp_f += kcobs*gauss_f(X[:2,i], P[4+i*6:6+i*6], ca.reshape(P[6+i*6:10+i*6], 2,2))
+    nlp_f += kcobs*barrier_f(gauss_f(X[:2,i], P[4+i*6:6+i*6], ca.reshape(P[6+i*6:10+i*6], 2,2)))
     nlp_x += [U[:,i], X[:,i]]
     nlp_g += [X[:,i] - dynamic_f(X[:,i-1],U[:,i])]
 
@@ -104,7 +113,7 @@ def nlp_solve(P):
     return x0, traj
 
 
-# test ******************************************************************************************
+# test ***************************************************************************
 if __name__=='__main__':
     p = np.zeros(4+6*10+2)
 
