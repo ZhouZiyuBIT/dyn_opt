@@ -32,7 +32,8 @@ class KFP(object):
         self._X = self._X_ + self._K@self._E
 
         a = (np.identity(self._s_dim) - self._K@self._H)
-        self._P = a@self._P_@a.T + self._K@self._R@self._K.T
+        # self._P = a@self._P_@a.T + self._K@self._R@self._K.T
+        self._P = a@self._P_
 
     def predict(self, N=1):
         X_pred = np.zeros([self._s_dim, N])
