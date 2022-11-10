@@ -9,6 +9,7 @@ map = ProbabilityMap()
 
 t = np.linspace(0, 2*np.pi, 60)
 x = np.sin(t+2.9)*2 + 2.4
+# y = np.sin(t+2.9)*0 + 2.5
 y = np.ones(x.shape[0])*2
 x = x.reshape([1, -1])
 y = y.reshape([1, -1])
@@ -34,6 +35,7 @@ def sim_run(T=50):
         X, traj = nlp_solve(p)
         t2 = time.time()
         print(t2-t1)
+        print(map._KFPs[0]._Q)
         x_init = X[2:6]
 
         t += sim_dt

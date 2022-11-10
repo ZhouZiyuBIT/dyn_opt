@@ -1,7 +1,7 @@
 import numpy as np
 import time
 
-from KFP import KFP
+from KFP import KFP, AdaKFP
 
 from opt import nlp_solve, reset_x0
 
@@ -76,7 +76,7 @@ class ProbabilityMap(object):
         X0 = np.array([0,0,0,0,0,0]).reshape(-1,1)
         X0[:2] = obs.pos
         P0 = np.diag([1,1,1,1,1,1])
-        kfp = KFP(state_dim, input_dim, obs_dim, F, G, H, Q, R, X0, P0)
+        kfp = AdaKFP(state_dim, input_dim, obs_dim, F, G, H, Q, R, X0, P0)
         self._KFPs.append(kfp)
 
     def get_pred(self):
