@@ -173,30 +173,41 @@ if __name__=="__main__":
                   [0,  0, 1]])
     G = np.zeros(1)
     H = np.array([[1, 0, 0]])
-    Q = np.diag([0.5, 0.5, 0.5])
-    R = np.diag([0.1])
+    Q = np.diag([0.001, 0.001, 0.001])
+    R = np.diag([0.01])
 
     X0 = np.array([0,0,0]).reshape(-1,1)
-    P0 = np.diag([10,10,100])
+    P0 = np.diag([100,10000,1000])
 
-    kfp = AdaKFP(state_dim, input_dim, obs_dim, F, G, H, Q, R, X0, P0)
+    kfp = KFP(state_dim, input_dim, obs_dim, F, G, H, Q, R, X0, P0)
 
-    t = np.linspace(0,6, num=60)
-    z = np.cos(3*t)
+    t = np.linspace(0,1, num=10)
+    # z = np.zeros(len(t))
+    z = 5*t - 0.5*9.81*t*t
     z_pre = []
     z_dot_pre = []
     z_ddot_pre = []
+    p_z = []
+    p_z_dot = []
+    p_z_ddot = []
     for z_obs in z:
         kfp.propagate()
         kfp.update(z_obs)
         z_pre.append(kfp._X[0])
         z_dot_pre.append(kfp._X[1])
         z_ddot_pre.append(kfp._X[2])
+        p_z.append(kfp._P[0,0])
+        p_z_dot.append(kfp._P[1,1])
+        p_z_ddot.append(kfp._P[2,2])
 
-    plt.plot(t,z)
-    plt.plot(t,z_pre)
+    # plt.plot(t,z)
+    # plt.plot(t,z_pre)
     # plt.plot(t,z_dot_pre)
     # plt.plot(t,z_ddot_pre)
+
+    plt.plot(t, p_z)
+    plt.plot(t, p_z_dot)
+    plt.plot(t, p_z_ddot)
 
     # X_pred, P_pred = kfp.predict(N=10)
     # plt.plot(X_pred[0,:])

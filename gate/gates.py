@@ -14,5 +14,22 @@ class Gates(object):
         self._g_pos_pre_cov = np.ones(self._g_pos_pre.shape)*3
         self._g_pos = self._g_pos_pre + np.random.uniform(-0.5, 0.5, size=self._g_pos_pre.shape)
     
-    def update(self, quad_pos):
+    def update(self):
+        self._g_pos = self._g_pos_pre + np.random.uniform(-0.5, 0.5, size=self._g_pos_pre.shape)
         pass
+
+class FreeGate(object):
+    def __init__(self, p0):
+        self._p0 = p0
+        self._G = np.array([0,0,9.81])
+
+        self._p = self._p0
+        vy = np.random.random()*4+1
+        vz = np.random.random()+4
+        self._v = np.array([0, vy, vz])
+
+    def reset(self):
+        self._p = self._p0
+        vy = np.random.random()*4+1
+        vz = np.random.random()+4
+        self._v = np.array([0, vy, vz])
