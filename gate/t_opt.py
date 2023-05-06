@@ -135,7 +135,7 @@ class TimeOpt(object):
         self._x0 = np.zeros((self._X_dim+self._U_dim)*self._Herizon)
         self._dt = np.zeros(self._wp_num)
         for i in range(self._wp_num):
-            self._dt[i] = 0.1
+            self._dt[i] = 0.5
             for j in range(self._N_per_wp):
                 self._x0[self._X_dim*(i*self._N_per_wp+j)+6] = 1
                 self._x0[self._X_dim*self._Herizon + self._U_dim*(i*self._N_per_wp+j)] = -9.8

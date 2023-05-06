@@ -93,7 +93,7 @@ def update_plot(*arg):
     k = 3.4
     dd1.set_data_3d(pos[0,5*i], pos[1,5*i], pos[2,5*i])
     return [dd1]
-ani = animation.FuncAnimation(fig, update_plot, interval=50, save_count=70, blit=True, repeat=False)
-ani.save('./gif/222.gif', writer='imagemagick')
+# ani = animation.FuncAnimation(fig, update_plot, interval=50, save_count=70, blit=True, repeat=False)
+# ani.save('./gif/222.gif', writer='imagemagick')
 
 plt.show()
